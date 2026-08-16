@@ -74,6 +74,27 @@
   .col .pillar{border-radius:16px 16px 8px 8px;height:0;transition:height 1.1s cubic-bezier(.2,.8,.2,1);}
   .col.free .pillar{background:linear-gradient(180deg,rgba(62,207,142,.28),rgba(62,207,142,.12));border:1.5px solid rgba(62,207,142,.5);}
   .col.tax .pillar{background:linear-gradient(180deg,rgba(229,83,61,.26),rgba(229,83,61,.1));border:1.5px solid rgba(229,83,61,.5);}
+  .col .taxman{height:0;overflow:hidden;border-radius:16px 16px 0 0;
+    background:repeating-linear-gradient(135deg,rgba(229,83,61,.42) 0 11px,rgba(229,83,61,.16) 11px 22px);
+    border:1.5px dashed rgba(229,83,61,.85);border-bottom:0;
+    display:flex;align-items:center;justify-content:center;}
+  .col.tax .pillar.stacked{border-radius:0 0 8px 8px;border-top:0;}
+  .taxman-in{opacity:0;transition:opacity .55s ease;padding:8px 6px;line-height:1.35;}
+  .taxman-in .tm-cap{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#ffc9be;font-weight:800;}
+  .taxman-in .tm-amt{display:block;margin-top:6px;font-size:clamp(16px,3.4vw,22px);font-weight:800;
+    color:#ff8f79;font-variant-numeric:tabular-nums;}
+  .chart-wrap{position:relative;width:100%;max-width:640px;margin:2px auto 6px;}
+  #growthCanvas{width:100%;height:clamp(190px,30vh,280px);display:block;border-radius:14px;
+    background:rgba(255,255,255,.035);border:1px solid rgba(169,160,208,.18);touch-action:none;}
+  .scrub-hint{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-size:11px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--muted);pointer-events:none;transition:opacity .3s ease;}
+  .readout{display:flex;gap:clamp(8px,2.4vw,20px);justify-content:center;align-items:center;flex-wrap:wrap;margin:8px auto 2px;}
+  .readout .ry{font-size:13px;font-weight:800;color:var(--ivory);text-align:left;}
+  .readout .ry span{display:block;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.06em;}
+  .readout .rrow{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-weight:700;}
+  .readout .rrow b{font-size:clamp(14px,2.6vw,18px);color:var(--ivory);font-variant-numeric:tabular-nums;margin-left:2px;}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  .dot.d4{background:#7f77ad;} .dot.d10{background:var(--gold-bright);} .dot.d12{background:var(--grow);}
   .col .label{margin-top:12px;font-size:15px;color:var(--ivory);font-weight:800;font-variant-numeric:tabular-nums;}
   .col .label span{display:block;font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.04em;margin-top:3px;}
   .punch{margin:22px auto 4px;font-size:clamp(17px,3vw,25px);font-weight:800;line-height:1.35;max-width:26ch;}
@@ -131,11 +152,16 @@
       <div class="cols">
         <div class="col free"><div class="cap">Tax-sheltered</div><div class="pillar" id="pFree"></div>
           <div class="label" id="labFree">$1,048,576<span>you keep it all</span></div></div>
-        <div class="col tax"><div class="cap">Taxed each step</div><div class="pillar" id="pTax"></div>
+        <div class="col tax"><div class="cap">Taxed each step</div>
+          <div class="taxman" id="pTaxman"><div class="taxman-in" id="taxmanIn">
+            <span class="tm-cap">&uarr; This went<br>to the taxman</span>
+            <span class="tm-amt" id="taxmanAmt">$1,007,934</span></div></div>
+          <div class="pillar" id="pTax"></div>
           <div class="label" id="labTax">$40,642<span>30% skimmed every double</span></div></div>
       </div>
+      <button class="btn btn-primary" id="whereBtn" style="display:none;margin-top:18px" onclick="revealTaxman()">Where did my money go?</button>
       <p class="punch" id="punchLine">Over <span class="loss">$1,000,000 lost</span> to tax. You kept just <span class="keep">4%</span>.</p>
-      <button class="btn btn-primary" onclick="go('r72intro')">How fast does money double? &rarr;</button>
+      <button class="btn btn-primary" id="nextBtn" style="display:none" onclick="go('r72intro')">How fast does money double? &rarr;</button>
       <div class="btn-row"><button class="btn btn-back" onclick="go('double')">&larr; Back</button></div>
     </section>
 
@@ -165,8 +191,26 @@
       <div class="chip-row" id="ages"></div>
       <p class="note" id="earlynote"></p>
       <p class="sub" style="margin:14px auto 22px">Same $300/month. Same 8%. The only difference is <i>when</i> you start.</p>
-      <button class="btn btn-primary" onclick="go('cta')">What's my plan? &rarr;</button>
+      <button class="btn btn-primary" onclick="go('growth')">Now compare the rates &rarr;</button>
       <div class="btn-row"><button class="btn btn-back" onclick="go('r72')">&larr; Back</button></div>
+    </section>
+
+    <section class="screen" id="s-growth">
+      <div class="eyebrow">Same money. Three different rates.</div>
+      <div class="chart-wrap">
+        <canvas id="growthCanvas"></canvas>
+        <div class="scrub-hint" id="scrubHint">Drag across the chart &mdash; see any year</div>
+      </div>
+      <div class="readout" id="growthRead">
+        <div class="ry"><b id="ryYear">Year 30</b><span>age <i id="ryAge">55</i></span></div>
+        <div class="rrow"><span class="dot d4"></span>4%<b id="rv4">$0</b></div>
+        <div class="rrow"><span class="dot d10"></span>10%<b id="rv10">$0</b></div>
+        <div class="rrow"><span class="dot d12"></span>12%<b id="rv12">$0</b></div>
+      </div>
+      <div class="chip-row" id="pmts"></div>
+      <p class="note" id="growthnote"></p>
+      <button class="btn btn-primary" style="margin-top:14px" onclick="go('cta')">What's my plan? &rarr;</button>
+      <div class="btn-row"><button class="btn btn-back" onclick="go('early')">&larr; Back</button></div>
     </section>
 
     <section class="screen" id="s-cta">
@@ -187,13 +231,14 @@
 </div>
 
 <script>
-  var screens={start:'s-start',double:'s-double',reveal:'s-reveal',r72intro:'s-r72intro',r72:'s-r72',early:'s-early',cta:'s-cta'};
+  var screens={start:'s-start',double:'s-double',reveal:'s-reveal',r72intro:'s-r72intro',r72:'s-r72',early:'s-early',growth:'s-growth',cta:'s-cta'};
   function go(name){
     initAudio();
     for(var k in screens){document.getElementById(screens[k]).classList.remove('on');}
     document.getElementById(screens[name]).classList.add('on');
     if(name==='double')resetDouble();
     if(name==='reveal')animateReveal();
+    if(name==='growth')startGrowth();
     if(name==='cta')sfxWin();
   }
   function usd(n){return '$'+Math.round(n).toLocaleString('en-US');}
@@ -333,27 +378,53 @@
     }
   }
 
+  var COL_H=240, TAX_H=Math.max(COL_H*40642/1048576,18);
   function animateReveal(){
     var free=document.getElementById('pFree'),tax=document.getElementById('pTax');
     var lf=document.getElementById('labFree'),lt=document.getElementById('labTax'),pl=document.getElementById('punchLine');
-    var els=[free,tax,lf,lt,pl];
+    var tm=document.getElementById('pTaxman'),tmi=document.getElementById('taxmanIn');
+    var wb=document.getElementById('whereBtn'),nb=document.getElementById('nextBtn');
+    var els=[free,tax,lf,lt,pl,tm,tmi];
     els.forEach(function(e){e.style.transition='none';});
-    free.style.height='0px';tax.style.height='0px';
-    lf.style.opacity='0';lt.style.opacity='0';pl.style.opacity='0';
+    free.style.height='0px';tax.style.height='0px';tm.style.height='0px';
+    lf.style.opacity='0';lt.style.opacity='0';pl.style.opacity='0';tmi.style.opacity='0';
+    tax.classList.remove('stacked');
+    wb.style.display='none';nb.style.display='none';
+    document.getElementById('taxmanAmt').textContent=usd(1048576-40642);
     void free.offsetWidth;
     setTimeout(function(){
       free.style.transition='height 1.3s cubic-bezier(.2,.8,.2,1)';
-      free.style.height='240px';
+      free.style.height=COL_H+'px';
       tone(330,0.45,'triangle',0.18);setTimeout(function(){tone(494,0.45,'triangle',0.16);},200);
     },80);
     setTimeout(function(){lf.style.transition='opacity .5s ease';lf.style.opacity='1';},1150);
     setTimeout(function(){
       tax.style.transition='height 1.8s ease-out';
-      tax.style.height=Math.max(240*40642/1048576,18)+'px';
+      tax.style.height=TAX_H+'px';
       sfxReveal();
     },1700);
     setTimeout(function(){lt.style.transition='opacity .5s ease';lt.style.opacity='1';},3000);
-    setTimeout(function(){pl.style.transition='opacity .6s ease';pl.style.opacity='1';},3600);
+    setTimeout(function(){wb.style.display='inline-block';},3400);
+  }
+
+  function revealTaxman(){
+    var tm=document.getElementById('pTaxman'),tmi=document.getElementById('taxmanIn');
+    var tax=document.getElementById('pTax'),pl=document.getElementById('punchLine');
+    var wb=document.getElementById('whereBtn'),nb=document.getElementById('nextBtn');
+    wb.style.display='none';
+    tax.classList.add('stacked');
+    tm.style.transition='height 1.5s cubic-bezier(.2,.8,.2,1)';
+    tm.style.height=(COL_H-TAX_H)+'px';
+    sfxTaxman();
+    setTimeout(function(){tmi.style.transition='opacity .55s ease';tmi.style.opacity='1';},1300);
+    setTimeout(function(){pl.style.transition='opacity .6s ease';pl.style.opacity='1';},1900);
+    setTimeout(function(){nb.style.display='inline-block';},2400);
+  }
+  function sfxTaxman(){
+    noiseBurst(0.35,0.16,900);
+    tone(196,0.5,'sawtooth',0.16);
+    setTimeout(function(){tone(147,0.6,'sawtooth',0.18);},260);
+    setTimeout(function(){tone(98,0.9,'sine',0.22);noiseBurst(0.25,0.1,600);},560);
   }
 
   var rateVals=[4,6,8,10,12];
@@ -401,6 +472,132 @@
     if(a===25){note.innerHTML='Starting at 25 gives you the <b>full head start</b>.';}
     else{note.innerHTML='By waiting to '+a+', you gave up <span class="down">'+usd(base25-fv)+'</span> vs starting at 25.';}
   }
+
+  /* ---------- Growth chart: 4% vs 10% vs 12% ---------- */
+  var G_START=25,G_END=65,G_YEARS=G_END-G_START;
+  var G_RATES=[{r:0.04,label:'4%',color:'#7f77ad'},
+               {r:0.10,label:'10%',color:'#ffca55'},
+               {r:0.12,label:'12%',color:'#3ecf8e'}];
+  var gPmt=300,gProg=0,gRAF=null,gScrub=G_YEARS,gStart=0,gTouched=false;
+
+  (function(){
+    var wrap=document.getElementById('pmts');
+    [100,300,500].forEach(function(p){
+      var b=document.createElement('button');
+      b.className='chip'+(p===300?' sel':'');
+      b.textContent='$'+p+'/mo';
+      b.onclick=function(){
+        document.querySelectorAll('#pmts .chip').forEach(function(c){c.classList.remove('sel');});
+        b.classList.add('sel');gPmt=p;sfxClick();startGrowth();
+      };
+      wrap.appendChild(b);
+    });
+  })();
+
+  function gFV(rate,yrs){return yrs<=0?0:fvAnnuity(gPmt,rate,yrs);}
+  function gMax(){return gFV(0.12,G_YEARS);}
+
+  function sizeCanvas(){
+    var c=document.getElementById('growthCanvas');
+    var dpr=window.devicePixelRatio||1;
+    var w=c.clientWidth||600,h=c.clientHeight||220;
+    c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);
+    var ctx=c.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
+    return {ctx:ctx,w:w,h:h};
+  }
+
+  function startGrowth(){
+    gTouched=false;gScrub=G_YEARS;
+    document.getElementById('scrubHint').style.opacity='1';
+    if(gRAF)cancelAnimationFrame(gRAF);
+    if(reduceMotion){gProg=1;drawGrowth();updateReadout();return;}
+    gProg=0;gStart=performance.now();
+    tone(392,0.3,'triangle',0.14);setTimeout(function(){tone(587,0.35,'triangle',0.14);},180);
+    gRAF=requestAnimationFrame(function loop(now){
+      gProg=Math.min((now-gStart)/1600,1);
+      var e=1-Math.pow(1-gProg,3);
+      drawGrowth(e);updateReadout(Math.round(e*G_YEARS));
+      if(gProg<1){gRAF=requestAnimationFrame(loop);}else{gRAF=null;updateReadout();}
+    });
+  }
+
+  function drawGrowth(prog){
+    if(prog===undefined)prog=1;
+    var s=sizeCanvas(),ctx=s.ctx,W=s.w,H=s.h;
+    var padL=8,padR=10,padT=14,padB=24;
+    var pw=W-padL-padR,ph=H-padT-padB,max=gMax()*1.04;
+    ctx.clearRect(0,0,W,H);
+    var X=function(y){return padL+(y/G_YEARS)*pw;};
+    var Y=function(v){return padT+ph-(v/max)*ph;};
+
+    ctx.strokeStyle='rgba(169,160,208,.16)';ctx.lineWidth=1;
+    ctx.fillStyle='rgba(169,160,208,.75)';ctx.font='10px -apple-system,Segoe UI,Roboto,sans-serif';
+    ctx.textAlign='center';
+    for(var y=0;y<=G_YEARS;y+=10){
+      ctx.beginPath();ctx.moveTo(X(y),padT);ctx.lineTo(X(y),padT+ph);ctx.stroke();
+      ctx.fillText(y===0?'age 25':'age '+(G_START+y),Math.min(Math.max(X(y),24),W-24),H-8);
+    }
+    ctx.beginPath();ctx.moveTo(padL,padT+ph);ctx.lineTo(padL+pw,padT+ph);
+    ctx.strokeStyle='rgba(169,160,208,.35)';ctx.stroke();
+
+    var shown=prog*G_YEARS;
+    G_RATES.forEach(function(g){
+      ctx.beginPath();
+      for(var y=0;y<=shown;y+=0.5){var v=gFV(g.r,y);y===0?ctx.moveTo(X(0),Y(0)):ctx.lineTo(X(y),Y(v));}
+      ctx.lineTo(X(shown),Y(gFV(g.r,shown)));
+      ctx.strokeStyle=g.color;ctx.lineWidth=3;ctx.lineJoin='round';ctx.lineCap='round';
+      ctx.shadowColor=g.color;ctx.shadowBlur=10;ctx.stroke();ctx.shadowBlur=0;
+      var ex=X(shown),ey=Y(gFV(g.r,shown));
+      ctx.beginPath();ctx.arc(ex,ey,4.5,0,6.2832);ctx.fillStyle=g.color;ctx.fill();
+      if(prog>=1){
+        ctx.textAlign='right';ctx.font='bold 12px -apple-system,Segoe UI,Roboto,sans-serif';
+        ctx.fillStyle=g.color;ctx.fillText(g.label,ex-8,Math.max(ey-9,padT+11));
+      }
+    });
+
+    if(prog>=1&&gTouched){
+      var sx=X(gScrub);
+      ctx.beginPath();ctx.setLineDash([4,4]);ctx.moveTo(sx,padT);ctx.lineTo(sx,padT+ph);
+      ctx.strokeStyle='rgba(246,241,231,.55)';ctx.lineWidth=1.5;ctx.stroke();ctx.setLineDash([]);
+      G_RATES.forEach(function(g){
+        ctx.beginPath();ctx.arc(sx,Y(gFV(g.r,gScrub)),6,0,6.2832);
+        ctx.fillStyle=g.color;ctx.fill();
+        ctx.strokeStyle='#141033';ctx.lineWidth=2;ctx.stroke();
+      });
+    }
+  }
+
+  function updateReadout(yr){
+    var y=(yr===undefined)?gScrub:yr;
+    document.getElementById('ryYear').textContent='Year '+Math.round(y);
+    document.getElementById('ryAge').textContent=G_START+Math.round(y);
+    document.getElementById('rv4').textContent=usd(gFV(0.04,y));
+    document.getElementById('rv10').textContent=usd(gFV(0.10,y));
+    document.getElementById('rv12').textContent=usd(gFV(0.12,y));
+    var gap=gFV(0.12,y)-gFV(0.04,y);
+    document.getElementById('growthnote').innerHTML=
+      'Same <b>$'+gPmt+'/month</b>. At year '+Math.round(y)+', 12% is ahead of 4% by <b>'+usd(gap)+'</b>.';
+  }
+
+  (function(){
+    var c=document.getElementById('growthCanvas');
+    function pick(e){
+      if(gProg<1)return;
+      var r=c.getBoundingClientRect();
+      var px=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+      var padL=8,padR=10,pw=r.width-padL-padR;
+      var y=Math.max(0,Math.min(G_YEARS,((px-padL)/pw)*G_YEARS));
+      gScrub=Math.round(y);gTouched=true;
+      document.getElementById('scrubHint').style.opacity='0';
+      drawGrowth(1);updateReadout();
+    }
+    var down=false;
+    c.addEventListener('pointerdown',function(e){down=true;c.setPointerCapture&&c.setPointerCapture(e.pointerId);pick(e);e.preventDefault();});
+    c.addEventListener('pointermove',function(e){if(down)pick(e);});
+    c.addEventListener('pointerup',function(){down=false;});
+    c.addEventListener('pointercancel',function(){down=false;});
+    window.addEventListener('resize',function(){if(document.getElementById('s-growth').classList.contains('on')){drawGrowth(gProg>=1?1:gProg);}});
+  })();
 </script>
 </body>
 </html>
